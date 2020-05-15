@@ -1,0 +1,44 @@
+/////////////////////////////////////////////////////////////
+// iter_echo::main.rs - demonstrating iteration            //
+//                                                         //
+// Jim Fawcett, https://JimFawcett.github.io, 14 May 2020  //
+/////////////////////////////////////////////////////////////
+
+use std::collections::*;
+
+fn main() {
+
+    let putline = || print!("\n");
+
+    let mut hm: HashMap<i32, &str> = HashMap::new();
+    hm.insert(0, "zero");
+    hm.insert(1, "one");
+    hm.insert(2, "two");
+    hm.insert(3, "three");
+    hm.insert(4, "four");
+    hm.insert(5, "five");
+    hm.insert(6, "six");
+
+    let iter = hm.iter();
+    print!("\n  iterating over hashmap:\n  ");
+    for item in iter {
+        print!("{:?}", item);
+    }
+    putline();
+    /*-- previous iter consumed so make new one --*/
+    let iter = hm.iter();
+    print!("\n  iterating and selecting odd entries:\n  ");
+    for item in iter.step_by(2) {
+        print!("{:?}", item);
+    }
+    putline();
+    /*-- previous iter consumed so make new one --*/
+    let iter = hm.iter();
+    print!("\n  iterating and selecting even entries:\n  ");
+    for item in iter.skip(1).step_by(2) {
+        print!("{:?}", item);
+    }
+    putline();
+
+    println!("\n  That's all Folks!\n");
+}
