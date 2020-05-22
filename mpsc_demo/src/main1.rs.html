@@ -1,0 +1,63 @@
+<pre>/////////////////////////////////////////////////////////////
+// mpsc_demo::main.rs - msg passing uses blocking queue    //
+//                                                         //
+// Jim Fawcett, https://JimFawcett.github.io, 22 May 2020  //
+/////////////////////////////////////////////////////////////
+
+use std::sync::mpsc;
+use std::thread;
+use std::time::Duration;
+
+fn send_proc(s:&amp;str, tx : &amp;mpsc::Sender&lt;String&gt;) {
+    let max = 5;
+    for i in 0..max {
+        let msg = format!("msg #{} from {}", i.to_string(), s);
+        print!("\n  sending  {:?}", msg);
+        tx.send(msg).unwrap();
+        thread::yield_now();   // others ready to run?
+    }
+}
+fn recv_proc(rx: &amp;mpsc::Receiver&lt;String&gt;) {
+    for msg in rx {
+        print!("\n  received {:?}", msg);
+        if msg == "quit" {
+            break;
+        }
+    }
+}
+fn demo() {
+    /*-- setup channel --*/
+    let (tx, rx) = mpsc::channel::&lt;String&gt;();
+    let tx2 = mpsc::Sender::clone(&amp;tx);
+    let tx_quit = mpsc::Sender::clone(&amp;tx);
+
+    /*-- receive thread --*/
+    let rcv_handle = thread::spawn(
+        move || { recv_proc(&amp;rx); 
+    });
+
+    /*-- wait for receive thread to start --*/
+    thread::sleep(Duration::from_millis(50));
+
+    /*-- send threads --*/
+    let toms_handle = thread::spawn(
+        move || { send_proc("Tom", &amp;tx); 
+    });
+    let jerrys_handle = thread::spawn(
+        move || { send_proc("Jerry", &amp;tx2); 
+    });
+    let _ = toms_handle.join();
+    let _ = jerrys_handle.join();
+
+    /*-- Tom and Jerry are finished so it's safe to stop receiver --*/
+    let _ = tx_quit.send("quit".to_string());
+    let _ = rcv_handle.join();
+}
+fn main() {
+    print!("\n  Message passing demo");
+    print!("\n ======================");
+
+    demo();
+    print!("\n\n That's all Folks!\n");
+}
+</pre>
