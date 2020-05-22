@@ -33,8 +33,9 @@ fn demo()  {
           the same locks and queue.
     */
     let shared1 = Arc::new((
-        Mutex::new(VecDeque::<String>::new()), 
+        Mutex::new(false),  
         Condvar::new(),
+        Mutex::new(VecDeque::<String>::new()), 
     ));
     let shared2 = shared1.clone();
     
@@ -53,22 +54,20 @@ fn demo()  {
         print!("\n  thread started");
         thread_started.store(true, Ordering::SeqCst);
         let _time_delay = time::Duration::from_millis(55);
-        let (lq, cvar) = &*shared2;
+        let (lock, cvar, lq) = &*shared2;
         loop {
             //thread::sleep(_time_delay);
-            let item: String;
-            {
-                /*-- acquire lock --*/
-                let mut q = lq.lock().unwrap();
-                
-                /*-- block on empty queue --*/
-                while q.len() == 0 {  // may get spurious returns
-                    q = cvar.wait(q).unwrap();
-                }
-                /*-- dequeue and display message --*/
-                item = q.pop_front().unwrap();
-            }   // lock released
+            let mut _started = lock.lock().unwrap();
             
+            /*-- block on empty queue --*/
+            _started = cvar.wait(_started).unwrap();
+
+            let mut q = lq.lock().unwrap();
+            if q.len() == 0 {
+                continue;  // spurious return
+            }
+            /*-- dequeue and display message --*/
+            let item = q.pop_front().unwrap();
             print!("\n  dequeued {:?} on child thread", item);
             let _ = std::io::stdout().flush();
             
@@ -92,13 +91,12 @@ fn demo()  {
         thread::sleep(_time_delay);
     }
     /*-- start sending messages --*/
-    let (lq, cvar) = &*shared1;
+    let (lock, cvar, lq) = &*shared1;
     let mut not_processed = 0;
 
-    let max = 5;
-    for i in 0..max {
+    for i in 0..5 {
         let mut value:String;
-        if i < max-1 {
+        if i < 4 {
           value = String::from("msg #");
           value.push_str(&i.to_string());
         }
@@ -107,6 +105,7 @@ fn demo()  {
         }
         print!("\n  enqueue  {:?} on main thread", &value);
         {
+            let _notify_lock = lock.lock().unwrap();
             let mut q = lq.lock().unwrap();
             q.push_back(value);
             not_processed = q.len();
@@ -128,8 +127,8 @@ fn demo()  {
 
 fn main() {
 
-    print!("\n  Demonstrate blocking queue shared between threads");
-    print!("\n ===================================================");
+    print!("\n  Demonstrating queue shared between threads");
+    print!("\n ============================================");
 
     demo();
     print!("\n\n  That's all Folks!\n");
